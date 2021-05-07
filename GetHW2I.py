@@ -4,6 +4,7 @@ import os
 import scipy
 import math
 import joblib
+import pickle
 
 from scipy.stats import norm
 import matplotlib.pyplot as plt
@@ -11,11 +12,9 @@ from sklearn.neighbors import KernelDensity
 from sklearn.utils.fixes import parse_version
 from sklearn.model_selection import GridSearchCV
 from utils import *
+from KDEpy import TreeKDE
 
 rgb_img = cv2.imread("data\smallmasked.png")
-
-
-
 
 b, g, r = [rgb_img[:, :, i] for i in range(3)]
 remove_img = b < 0
@@ -43,23 +42,35 @@ for i, range_obj in enumerate(range_list):
     area = range_obj.incolor(big_img)
     x = cos_halfv[area]
     x = np.arccos(x)
-    area = x <= np.pi/4
+    area = x <= np.pi / 4
     x = x[area]
-    x = np.asarray(x)[:, np.newaxis]
+    x = np.asarray(x)  # [:, np.newaxis]
 
     X_plot = np.linspace(0, np.pi / 4, 100)
-    grid_param = {'bandwidth': list(np.arange(0.0, 0.01, 0.005))}
+    # grid_param = {'bandwidth': list(np.arange(0.0, 0.01, 0.005))}
 
     # kde_grid = GridSearchCV(KernelDensity(), grid_param)
     # kde = kde_grid.fit(x).best_estimator_
     # print(kde_grid.best_params_)
     # x = x.reshape(-1, 1)
-    kde = KernelDensity(bandwidth=0.05).fit(x)
-    # joblib.dump(kde, os.path.join("model", range_obj.name + '.skm'))
-    dens = kde.score_samples(X_plot[:, np.newaxis])
-    plt.plot(X_plot, np.exp(dens))
+    if x.size >= 500000:
+        x = np.random.choice(x, 500000)
+    print(range_obj.name)
+    kde = TreeKDE(kernel="gaussian", bw='silverman').fit(x)
+    print(x.size)
+    dens = kde.evaluate(X_plot)
+    plt.plot(X_plot, dens)
     plt.title(range_obj.name)
     plt.show()
+    del kde
+    del dens
+    np.save(os.path.join("model", range_obj.name+".npy"), x)
+    # kde = KernelDensity(bandwidth=0.05).fit(x)
+    # # joblib.dump(kde, os.path.join("model", range_obj.name + '.skm'))
+    # dens = kde.score_samples(X_plot[:, np.newaxis])
+    # plt.plot(X_plot, np.exp(dens))
+    # plt.title(range_obj.name)
+    # plt.show()
 
 normal_map_eye = np.zeros((8192, 8192))
 # normal_map_eye[eyearea] = cos_halfv
